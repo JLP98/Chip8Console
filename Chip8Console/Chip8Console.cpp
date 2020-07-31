@@ -2,11 +2,17 @@
 //
 
 #include <iostream>
+#include <string>
 #include "chip8.h"
 
 int main()
 {
     Chip8* chip8 = Chip8::getInstance();
+    std::string question("Please enter the ROM file path: ");
+    std::string filePath;    
+    std::cout << question;
+    std::getline(std::cin, filePath);
+    (*chip8).loadRom(filePath);
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
