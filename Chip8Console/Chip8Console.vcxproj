@@ -141,9 +141,14 @@
   <ItemGroup>
     <ClCompile Include="chip8.cpp" />
     <ClCompile Include="Chip8Console.cpp" />
+    <ClCompile Include="ConsoleRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chip8.h" />
+    <ClInclude Include="ConsoleRenderer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\Documents\Summer 2020\Personal Projects\ROMs\TETRIS" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

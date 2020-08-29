@@ -19,10 +19,17 @@ Chip8::Chip8()
 	std::fill(memory, memory + 4096, 0);
 	std::fill(registers, registers + 16, 0);
 	std::fill(stack, stack + 16, 0);
+	std::fill(display, display + totalPixels, 0);
+	std::fill(key, key + 16, 0);
 	indexRegister = 0;
 	stackPointer = 0;
 	delayTimer = 0;
 	soundTimer = 0;
+	programCounter = MEMORY_START_POS;
+	keyPressed = true;
+	for (int i = 0; i < 80; ++i) {
+		memory[i] = fontset[i];
+	}
 }
 
 void Chip8::loadRom(string romPath) {
@@ -38,16 +45,37 @@ void Chip8::loadRom(string romPath) {
 	romLoaded = true;
 }
 
+bool Chip8::getDrawGraphics() {
+	return drawGraphics;
+}
+
+uint8_t* Chip8::getDisplay() {
+	return display;
+}
+
+void Chip8::setKey(int keyNumber, bool keyState) {
+	if (keyState) {
+		key[keyNumber] = 1;
+		keyPressed = true;
+	}
+	else {
+		key[keyNumber] = 0;
+	}
+}
+
 void Chip8::romCycle() {
-	for (short int programCounter = MEMORY_START_POS; programCounter <= MEMORY_START_POS + fileSize; programCounter += 2) {
-		uint16_t opcode = (memory[programCounter] << 8u) | memory[programCounter + 1];
-		executeInstruction(opcode);
-		if (delayTimer > 0) {
-			delayTimer--;
-		}
-		if (soundTimer > 0) {
-			soundTimer--;
-		}
+	if (!keyPressed) {
+		return;
+	}
+	drawGraphics = false;
+	uint16_t opcode = (memory[programCounter] << 8) | memory[programCounter + 1];
+	programCounter += 2;
+	executeInstruction(opcode);
+	if (delayTimer > 0) {
+		delayTimer--;
+	}
+	if (soundTimer > 0) {
+		soundTimer--;
 	}
 }
 
@@ -63,6 +91,7 @@ void Chip8::executeInstruction(uint16_t instruction) {
 		else if (right3Nibbles == 0x00EE) {
 			returnFromRoutine();
 		}
+		break;
 	}
 	case 0x1000:
 	{
@@ -141,7 +170,7 @@ void Chip8::executeInstruction(uint16_t instruction) {
 }
 
 void Chip8::clearScreen() { // 00E0
-
+	std::fill(display, display + totalPixels, 0);
 }
 
 void Chip8::returnFromRoutine() { // 00EE
@@ -179,7 +208,7 @@ void Chip8::skipNextNotEqual(uint16_t  address) { // 4NNN
 }
 void Chip8::skipNextEqualRegs(uint16_t  address) { // 5NNN
 	uint8_t registerIndexX = address >> 8u;
-	uint8_t registerIndexY = address >> 4u;
+	uint8_t registerIndexY = (address & 0x0F0) >> 4u;
 	if (registerIndexX > 16 || registerIndexY > 16) {
 		return;
 	}
@@ -189,7 +218,7 @@ void Chip8::skipNextEqualRegs(uint16_t  address) { // 5NNN
 }
 void Chip8::skipNextNotEqualRegs(uint16_t  address) { // 9XY0
 	uint8_t registerIndexX = address >> 8u;
-	uint8_t registerIndexY = address >> 4u;
+	uint8_t registerIndexY = (address & 0x0F0) >> 4u;
 	if (registerIndexX > 16 || registerIndexY > 16) {
 		return;
 	}
@@ -228,12 +257,38 @@ void Chip8::setRegisterRand(uint16_t  address) { // CXNN
 	registers[registerIndex] = (rand() % 255) & value;
 }
 void Chip8::drawPixelsToDisplay(uint16_t  address) { // DXYN
+	uint8_t X = address >> 8u;
+	uint8_t Y = (address & 0x0F0) >> 4u;
+	uint8_t numOfRows = address & 0x000F;
+	uint8_t xPos = registers[X];
+	uint8_t yPos = registers[Y];
+	registers[15] = 0;
 
+	for (int row = 0; row < numOfRows; row++)
+	{
+		uint8_t pixel = memory[indexRegister + row];
+		for (int col = xPos; col < xPos + 8; col++)
+		{
+			if (((pixel >> (7 - (col - xPos))) & 0x1) == 0) {
+				continue;
+			}
+
+			int actualX = col % 64; // Screen wrap
+			int actualY = (yPos + row) % 32; // Screen wrap
+
+			if (display[actualX + (actualY * 64)] == 1) {
+				registers[15] = 1;
+			}
+
+			display[actualX + (actualY * 64)] ^= 1;
+			drawGraphics = true;
+		}
+	}
 }
 void Chip8::registerChanges(uint16_t  instruction) { // 8XYN
 	uint8_t operation = instruction & 0x000F;
 	uint8_t registerIndexX = instruction >> 8u;
-	uint8_t registerIndexY = instruction >> 4u;
+	uint8_t registerIndexY = (instruction & 0x0F0) >> 4u;
 	switch (operation)
 	{
 	case 0x0000:
@@ -310,9 +365,18 @@ void Chip8::registerChanges(uint16_t  instruction) { // 8XYN
 	}
 }
 void Chip8::keyOperations(uint16_t  instruction) { // EX9E & EXA1
+	uint8_t operation = instruction & 0x00FF;
 	uint8_t registerKey = instruction >> 8u;
-	// if(key()==Vx) - Skip next instruction
-	// if(key()!=Vx) - Skip the next instruction
+	switch (operation) {
+	case 0x009E:
+		if (key[registers[registerKey]] != 0) {
+			programCounter += 2;
+		}
+	case 0x00A1:
+		if (key[registers[registerKey]] == 0) {
+			programCounter += 2;
+		}
+	}
 }
 void Chip8::extraOperations(uint16_t  instruction) { // FXNN
 	uint8_t registerIndex = instruction >> 8u;
@@ -325,8 +389,8 @@ void Chip8::extraOperations(uint16_t  instruction) { // FXNN
 	}
 	case 0x000A:
 	{
-		// A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event) 
-		break;
+		keyPressed = false;
+		return;
 	}
 	case 0x0015:
 	{
@@ -340,17 +404,25 @@ void Chip8::extraOperations(uint16_t  instruction) { // FXNN
 	}
 	case 0x001E:
 	{
+		if (indexRegister + registers[registerIndex] > 0xFFF) {
+			registers[15] = 1;
+		}
+		else {
+			registers[15] = 0;
+		}
 		indexRegister += registers[registerIndex];
 		break;
 	}
 	case 0x0029:
 	{
-		// Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font. 
+		indexRegister = registers[registerIndex] * 5;
 		break;
 	}
 	case 0x0033:
 	{
-		// BCD
+		memory[indexRegister] = registers[registerIndex] / 100;
+		memory[indexRegister + 1] = (registers[registerIndex] / 10) % 10;
+		memory[indexRegister + 2] = registers[registerIndex] % 10;
 		break;
 	}
 	case 0x0055:

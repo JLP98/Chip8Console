@@ -21,10 +21,19 @@
     <ClCompile Include="chip8.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ConsoleRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chip8.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="ConsoleRenderer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\Documents\Summer 2020\Personal Projects\ROMs\TETRIS" />
   </ItemGroup>
 </Project>

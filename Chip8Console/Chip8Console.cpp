@@ -1,27 +1,46 @@
 // Chip8Console.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include <iostream>
 #include <string>
 #include "chip8.h"
+#include "ConsoleRenderer.h"
+#include <thread>
+#include <chrono>
 
 int main()
 {
-    Chip8* chip8 = Chip8::getInstance();
-    std::string question("Please enter the ROM file path: ");
-    std::string filePath;    
-    std::cout << question;
-    std::getline(std::cin, filePath);
-    (*chip8).loadRom(filePath);
+	int refreshRate = 960;
+	int delay = 1000000 / refreshRate;
+	std::string filePath = "TETRIS";
+	Chip8* chip8 = Chip8::getInstance();
+	(*chip8).loadRom(filePath);
+	ConsoleRenderer renderer;
+	while (true) {
+		(*chip8).romCycle();
+		if ((*chip8).getDrawGraphics()) {
+			uint8_t* graphics = (*chip8).getDisplay();
+			renderer.Render(graphics);
+		}
+		(*chip8).setKey(0x1, GetAsyncKeyState('1') & 0x8000);
+		(*chip8).setKey(0x2, GetAsyncKeyState('2') & 0x8000);
+		(*chip8).setKey(0x3, GetAsyncKeyState('3') & 0x8000);
+		(*chip8).setKey(0xC, GetAsyncKeyState('4') & 0x8000);
+
+		(*chip8).setKey(0x4, GetAsyncKeyState('Q') & 0x8000);
+		(*chip8).setKey(0x5, GetAsyncKeyState('W') & 0x8000);
+		(*chip8).setKey(0x6, GetAsyncKeyState('E') & 0x8000);
+		(*chip8).setKey(0xD, GetAsyncKeyState('R') & 0x8000);
+
+		(*chip8).setKey(0x7, GetAsyncKeyState('A') & 0x8000);
+		(*chip8).setKey(0x8, GetAsyncKeyState('S') & 0x8000);
+		(*chip8).setKey(0x9, GetAsyncKeyState('D') & 0x8000);
+		(*chip8).setKey(0xE, GetAsyncKeyState('F') & 0x8000);
+
+		(*chip8).setKey(0xA, GetAsyncKeyState('Z') & 0x8000);
+		(*chip8).setKey(0x0, GetAsyncKeyState('X') & 0x8000);
+		(*chip8).setKey(0xB, GetAsyncKeyState('C') & 0x8000);
+		(*chip8).setKey(0xF, GetAsyncKeyState('V') & 0x8000);
+		std::this_thread::sleep_for(std::chrono::microseconds(delay));
+	}
 }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
